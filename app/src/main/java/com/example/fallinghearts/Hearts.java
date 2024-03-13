@@ -18,17 +18,19 @@ public class Hearts {
         this.x = x;
         this.y = y;
 
-        // Load the heart image bitmap
-        // Make sure to replace R.drawable.heart with the actual resource ID of your heart image
-        this.bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.heart);
-        this.width = bitmap.getWidth();
-        this.height = bitmap.getHeight();
+        // Load the heart image bitmap and scale it down
+        Bitmap tempBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.heart);
+        int width = tempBitmap.getWidth() / 2; // Half the original width
+        int height = tempBitmap.getHeight() / 2; // Half the original height
+        this.bitmap = Bitmap.createScaledBitmap(tempBitmap, width, height, false);
+
+        // Set width and height based on the scaled bitmap
+        this.width = this.bitmap.getWidth();
+        this.height = this.bitmap.getHeight();
 
         this.points = new java.util.Random().nextInt(10) + 1;
-
-        // Optionally, resize the bitmap if needed
-        // this.bitmap = Bitmap.createScaledBitmap(bitmap, width, height, false);
     }
+
 
     public void update() {
         // Move the heart down

@@ -16,13 +16,17 @@ public class Hands {
         this.x = x;
         this.y = y;
 
-        // Load the hands image bitmap
-        this.bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.hands);
+        // Load the hands image bitmap and scale it down
+        Bitmap tempBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.hands);
+        int width = tempBitmap.getWidth() / 2; // Half the original width
+        int height = tempBitmap.getHeight() / 2; // Half the original height
+        this.bitmap = Bitmap.createScaledBitmap(tempBitmap, width, height, false);
 
-        // Set width and height of the hands
-        this.width = bitmap.getWidth();
-        this.height = bitmap.getHeight();
+        // Set width and height based on the scaled bitmap
+        this.width = this.bitmap.getWidth();
+        this.height = this.bitmap.getHeight();
     }
+
 
     // Call this method to update the position of the hands based on touch events
     public void updatePosition(float x, float y) {

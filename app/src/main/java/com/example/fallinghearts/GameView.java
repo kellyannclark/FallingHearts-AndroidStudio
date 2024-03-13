@@ -8,7 +8,6 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import androidx.annotation.NonNull;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import android.util.Log;
@@ -20,18 +19,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private List<Devil> devilsList;
     private long lastSpawnTime;
     private static final long SPAWN_INTERVAL = 2000; // 2 seconds between spawns
-    private int points = 0;
+    private int points = 1;
     private Paint textPaint; // Paint object for drawing text
 
-    // Add a method to show the lose message
-    private void showLoseMessage(Canvas canvas) {
-        String loseMessage = "You Lose!";
-        float centerX = getWidth() / 2f;
-        float centerY = getHeight() / 2f;
-
-        // Draw the lose message at the center of the screen
-        canvas.drawText(loseMessage, centerX, centerY, textPaint);
-    }
+    private boolean gameStarted = false;
 
     public GameView(Context context) {
         super(context);
@@ -72,52 +63,39 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         Random rand = new Random();
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastSpawnTime > SPAWN_INTERVAL) {
-            int heartsToSpawn = 1 + rand.nextInt(2); // Adjust the number of hearts to spawn
+            // Double the number of hearts to spawn by adjusting the range
+            int heartsToSpawn = 2 + rand.nextInt(3); // Previously was 1 + rand.nextInt(2)
             for (int i = 0; i < heartsToSpawn; i++) {
-                float x = rand.nextFloat() * (getWidth() - 100);
+                // Assuming heart width after scaling is about 50px, adjust as necessary
+                float x = rand.nextFloat() * (getWidth() - 50) + 25; // Add padding to avoid spawning at the very edge
                 heartsList.add(new Hearts(getContext(), x, 0));
             }
 
-            // Increase the frequency of devil spawns
-            if (rand.nextInt(2) == 0) { // 1/2 chance instead of 1/6
-                float x = rand.nextFloat() * (getWidth() - 100);
+            // Increase the chance of spawning devils
+            // By removing the if condition, you effectively spawn devils every time entities are spawned
+            // If you still want some variability, but with more devils, consider adjusting the condition
+            int devilsToSpawn = 1 + rand.nextInt(2); // Spawn 1 to 2 devils every time
+            for (int i = 0; i < devilsToSpawn; i++) {
+                // Assuming devil width after scaling is about 50px, adjust as necessary
+                float x = rand.nextFloat() * (getWidth() - 50) + 25; // Add padding to avoid spawning at the very edge
                 devilsList.add(new Devil(getContext(), x, 0));
             }
 
             lastSpawnTime = currentTime;
-        }
-
-        // Check if points hit zero or less
-        if (points <= 0) {
-            // Game over, show lose message
-            Canvas canvas = getHolder().lockCanvas();
-            try {
-                if (canvas != null) {
-                    canvas.drawColor(android.graphics.Color.WHITE);
-                    showLoseMessage(canvas);
-                }
-            } finally {
-                if (canvas != null) {
-                    getHolder().unlockCanvasAndPost(canvas);
-                }
-            }
-
-            // End the game
-            pause();
-            return; // Exit the method to prevent further entity spawning
+            gameStarted = true; // Set the game as started after the first spawn cycle
         }
     }
 
+
+
+
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        Log.d("GameView", "surfaceCreated");
         if (thread.getState() == Thread.State.NEW) {
             thread.setRunning(true);
             thread.start();
         }
     }
-
-
 
     @Override
     public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
@@ -128,18 +106,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         boolean retry = true;
-        thread.setRunning(false); // Signal the thread to stop
+        thread.setRunning(false);
         while (retry) {
             try {
-                thread.join(); // Wait for the thread to finish
+                thread.join();
                 retry = false;
             } catch (InterruptedException e) {
                 // Optionally log the exception
             }
         }
-        thread = null; // Help with garbage collection
+        thread = null;
     }
-
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
@@ -151,6 +128,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                 break;
         }
         return true;
+    }
+
+    private void showLoseMessage(Canvas canvas) {
+        canvas.drawColor(android.graphics.Color.WHITE);
+        String loseMessage = "You Lose!";
+        float centerX = getWidth() / 2f;
+        float centerY = getHeight() / 2f;
+        canvas.drawText(loseMessage, centerX, centerY, textPaint);
     }
 
     class GameThread extends Thread {
@@ -177,15 +162,37 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                         if (canvas != null) {
                             canvas.drawColor(android.graphics.Color.WHITE); // Clear the canvas
 
-                            // Now draw each heart and devil
+                            // Update and draw each heart and devil
                             for (Hearts heart : heartsList) {
+                                heart.update();
+                                // Check collision with hands here if needed
+                                if (hands.collidesWith(heart.getX(), heart.getY(), heart.getWidth(), heart.getHeight())) {
+                                    points += heart.getPoints(); // Assume getPoints() exists and updates the score
+                                    // Remove heart from list or flag for removal
+                                }
                                 heart.draw(canvas);
                             }
+                            heartsList.removeIf(heart -> heart.getY() > getHeight() || hands.collidesWith(heart.getX(), heart.getY(), heart.getWidth(), heart.getHeight()));
+
                             for (Devil devil : devilsList) {
+                                devil.update();
+                                // Check collision with hands here
+                                if (hands.collidesWith(devil.getX(), devil.getY(), devil.getWidth(), devil.getHeight())) {
+                                    points -= 20; // Deduct 20 points for each collision with a devil
+                                    // Remove devil from list or flag for removal to avoid multiple deductions for the same devil
+                                }
                                 devil.draw(canvas);
                             }
+                            devilsList.removeIf(devil -> devil.getY() > getHeight() || hands.collidesWith(devil.getX(), devil.getY(), devil.getWidth(), devil.getHeight()));
 
-                            gameView.spawnEntities(); // Continue to spawn entities as necessary
+
+                            // Update and draw hands
+                            hands.draw(canvas);
+
+                            // Draw the points counter at the top
+                            canvas.drawText("Points: " + points, 10, 50, textPaint);
+
+                            spawnEntities(); // Continue to spawn entities as necessary
                         }
                     }
                 } finally {
@@ -195,6 +202,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                 }
             }
         }
+
+
 
     }
 }

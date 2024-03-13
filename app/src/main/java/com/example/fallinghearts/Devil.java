@@ -18,16 +18,17 @@ public class Devil {
         this.x = x;
         this.y = y;
 
-        // Load and scale the devil image bitmap directly
+        // Load the devil image bitmap
         Bitmap tempBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.devil);
-        float scaleFactor = 1.0f; // Example scale factor, adjust based on your needs
+        // Scale down the bitmap to half size
         int width = tempBitmap.getWidth();
         int height = tempBitmap.getHeight();
-        this.bitmap = Bitmap.createScaledBitmap(tempBitmap, (int)(width * scaleFactor), (int)(height * scaleFactor), false);
+        this.bitmap = Bitmap.createScaledBitmap(tempBitmap, width / 2, height / 2, false);
 
-        // Initialize the rectangle for the devil
+        // Initialize the rectangle for the devil, adjusted for the new size
         this.rect = new RectF(this.x, this.y, this.x + this.bitmap.getWidth(), this.y + this.bitmap.getHeight());
     }
+
 
     public void update() {
         // Move the devil down
